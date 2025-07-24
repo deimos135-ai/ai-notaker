@@ -1,44 +1,46 @@
 import os
 import logging
-from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message
-from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
 import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram.enums import ParseMode
+from aiogram.types import Message
+from aiogram.client.default import DefaultBotProperties
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from db import save_message, get_weekly_messages
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-# Logging
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+dp = Dispatcher()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+scheduler = AsyncIOScheduler()
 
-# Bot and Dispatcher
-bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
-dp = Dispatcher()
-
-# Handlers
-@dp.message(CommandStart())
-async def start_handler(message: Message):
-    await message.answer("✅ Бот активний. Надсилай повідомлення.")
-
-@dp.message(F.chat.type.in_({"group", "supergroup"}))
-async def handle_group_message(message: Message):
+@dp.message()
+async def handle_message(message: Message):
     logger.info(f"✅ Отримано повідомлення: {message.text}")
-    # TODO: Зберігати в базу / файл
-    # Тут можна викликати функцію, яка логуватиме в CSV або SQLite
+    save_message(
+        chat_id=message.chat.id,
+        username=message.from_user.username or "невідомо",
+        text=message.text,
+        timestamp=message.date.isoformat()
+    )
 
-# Startup
-async def on_startup(bot: Bot):
-    logger.info("🚀 Бот стартує...")
+@scheduler.scheduled_job("cron", day_of_week="fri", hour=18)
+async def weekly_summary():
+    messages = get_weekly_messages()
+    if not messages:
+        return
 
-# Shutdown
-async def on_shutdown(bot: Bot):
-    logger.info("🛑 Бот зупиняється...")
+    summary_text = "<b>🗓 Щотижневий підсумок:</b>\n\n"
+    for username, text, timestamp in messages:
+        summary_text += f"<b>{username}:</b> {text}\n"
 
-# Main
+    chat_id = messages[-1][0]  # або вкажи фіксований chat_id вручну
+    await bot.send_message(chat_id=chat_id, text=summary_text)
+
 async def main():
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
+    logger.info("🚀 Бот стартує...")
+    scheduler.start()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
