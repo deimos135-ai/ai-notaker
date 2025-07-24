@@ -22,10 +22,10 @@ def save_message(chat_id, username, text, timestamp):
     ''', (chat_id, username, text, timestamp))
     conn.commit()
 
-def get_weekly_messages():
+def get_weekly_messages(chat_id):
     cursor.execute('''
         SELECT username, text, timestamp FROM messages
-        WHERE timestamp >= datetime('now', '-7 days')
+        WHERE chat_id = ? AND timestamp >= datetime('now', '-7 days')
         ORDER BY timestamp ASC
-    ''')
+    ''', (chat_id,))
     return cursor.fetchall()
