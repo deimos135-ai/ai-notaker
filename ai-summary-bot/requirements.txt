@@ -3,3 +3,4 @@ openai
 aiohttp
 aiosqlite
 python-dotenv
+apscheduler
