@@ -3,3 +3,6 @@ app = "ai-notaker"
 [build]
 
 [env]
+
+[processes]
+app = "python bot.py"
