@@ -1,29 +1,31 @@
-import aiosqlite
-from datetime import datetime, timedelta
+import sqlite3
+from datetime import datetime
 
-DB_PATH = "messages.db"
+conn = sqlite3.connect("messages.db", check_same_thread=False)
+cursor = conn.cursor()
 
-async def save_message(message):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS messages (
-                chat_id INTEGER,
-                user TEXT,
-                text TEXT,
-                timestamp TEXT
-            )
-        """)
-        await db.execute(
-            "INSERT INTO messages (chat_id, user, text, timestamp) VALUES (?, ?, ?, ?)",
-            (message.chat.id, message.from_user.full_name, message.text, datetime.utcnow().isoformat())
-        )
-        await db.commit()
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER,
+    username TEXT,
+    text TEXT,
+    timestamp TEXT
+)
+''')
+conn.commit()
 
-async def get_messages_last_week():
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
-    async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute(
-            "SELECT user, text FROM messages WHERE timestamp >= ?", (one_week_ago.isoformat(),)
-        )
-        rows = await cursor.fetchall()
-        return [{"user": row[0], "text": row[1]} for row in rows]
+def save_message(chat_id, username, text, timestamp):
+    cursor.execute('''
+        INSERT INTO messages (chat_id, username, text, timestamp)
+        VALUES (?, ?, ?, ?)
+    ''', (chat_id, username, text, timestamp))
+    conn.commit()
+
+def get_weekly_messages():
+    cursor.execute('''
+        SELECT username, text, timestamp FROM messages
+        WHERE timestamp >= datetime('now', '-7 days')
+        ORDER BY timestamp ASC
+    ''')
+    return cursor.fetchall()
