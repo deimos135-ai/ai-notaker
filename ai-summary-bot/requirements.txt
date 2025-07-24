@@ -4,3 +4,4 @@ aiohttp
 aiosqlite
 python-dotenv
 apscheduler
+sqlalchemy>=2.0.0
