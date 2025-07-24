@@ -1,3 +1,5 @@
-mv fly.toml ai-summary-bot/
-cd ai-summary-bot
-fly deploy
+app = "ai-notaker"
+
+[build]
+
+[env]
