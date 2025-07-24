@@ -1,33 +1,45 @@
 import os
-import asyncio
-from aiogram import Bot, Dispatcher, types
+import logging
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
-from dotenv import load_dotenv
-from db import save_message
-
-load_dotenv()
+from aiogram.filters import CommandStart
+import asyncio
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN не знайдено!")
+# Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+# Bot and Dispatcher
 bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
-dp = Dispatcher(storage=MemoryStorage())
+dp = Dispatcher()
 
-@dp.message()
-async def handle_message(message: types.Message):
-    if message.chat.type in ["group", "supergroup"] and message.text:
-        print(f"✅ Повідомлення з групи: {message.text}")
-        await save_message(message)
+# Handlers
+@dp.message(CommandStart())
+async def start_handler(message: Message):
+    await message.answer("✅ Бот активний. Надсилай повідомлення.")
 
+@dp.message(F.chat.type.in_({"group", "supergroup"}))
+async def handle_group_message(message: Message):
+    logger.info(f"✅ Отримано повідомлення: {message.text}")
+    # TODO: Зберігати в базу / файл
+    # Тут можна викликати функцію, яка логуватиме в CSV або SQLite
+
+# Startup
+async def on_startup(bot: Bot):
+    logger.info("🚀 Бот стартує...")
+
+# Shutdown
+async def on_shutdown(bot: Bot):
+    logger.info("🛑 Бот зупиняється...")
+
+# Main
 async def main():
-    print("🚀 Бот стартує...")
-
-    # Ось тут важливо: async with
-    async with bot:
-        await dp.start_polling(bot)
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
